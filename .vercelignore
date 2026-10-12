@@ -1,0 +1,11 @@
+README.md
+set-env.ps1
+DEPLOY.md
+deploy.ps1
+Dockerfile
+Procfile
+run.sh
+run_windows.bat
+.env.example
+data
+venv

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "_m.html" import avatar, csrf %}
+{% block title %}My attendance{% endblock %}
+{% block content %}
+{% set c = completion(g.user) %}
+<div class="pagehead"><div><h1>Hello, {{ g.user.full_name.split()[0] }}</h1><hr class="rule"></div></div>
+
+<section class="clockpanel" aria-label="Today">
+  <div>
+    <div class="date">{{ now.strftime('%A, %d %B %Y') }}</div>
+    <div class="clock" id="clock" data-ts="{{ (now.timestamp()*1000)|int }}" data-tz="{{ tzname }}">{{ now.strftime('%H:%M:%S') }}</div>
+    <div class="times">
+      <div><small>Checked in</small><b>{{ t12(rec.check_in) if rec else '—' }}</b></div>
+      <div><small>Checked out</small><b>{{ t12(rec.check_out) if rec and rec.check_out else '—' }}</b></div>
+      <div><small>Status</small><b>{{ rec.status if rec else 'Not checked in' }}</b></div>
+      {% if rec and rec.check_out %}<div><small>Hours today</small><b>{{ hours(rec) }}</b></div>{% endif %}
+    </div>
+    {% if not rec %}<p class="small" style="color:#93a0bd;margin:18px 0 0">Office starts at {{ office_start }}. Time is recorded by the server.</p>{% endif %}
+  </div>
+  {% if not rec %}
+    <form method="post" action="{{ url_for('checkin') }}">{{ csrf() }}<button class="punch" type="submit">Check in</button></form>
+  {% elif not rec.check_out %}
+    <form method="post" action="{{ url_for('checkout') }}">{{ csrf() }}<button class="punch out" type="submit">Check out</button></form>
+  {% else %}
+    <button class="punch done" type="button" disabled>Day complete</button>
+  {% endif %}
+</section>
+
+<div class="grid split" style="margin-top:22px">
+  <div>
+    <div class="grid g3" style="margin-bottom:20px">
+      <div class="card stat"><div class="n">{{ stats.p or 0 }}</div><div class="l">On time this month</div></div>
+      <div class="card stat warn"><div class="n">{{ stats.l or 0 }}</div><div class="l">Late this month</div></div>
+      <div class="card stat dark"><div class="n">{{ rows|length }}</div><div class="l">Records (last 31)</div></div>
+    </div>
+    <h2 style="margin-bottom:12px">My history</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Date</th><th>In</th><th>Out</th><th>Hours</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for r in rows %}<tr><td class="nowrap">{{ d_nice(r.work_date) }}</td><td>{{ t12(r.check_in) }}</td><td>{{ t12(r.check_out) }}</td><td>{{ hours(r) or '—' }}</td><td><span class="tag {{ r.status }}">{{ r.status }}</span></td></tr>
+      {% else %}<tr><td colspan="5" class="empty">No attendance yet. Use the Check in button above to record your first day.</td></tr>{% endfor %}
+      </tbody></table></div>
+  </div>
+  <aside class="card" style="text-align:center">
+    <h3 style="margin-bottom:16px">Profile completion</h3>
+    <div class="ring" style="--p:{{ c.score }}"><div>{{ c.score }}%</div></div>
+    {% if c.missing %}<p class="muted small" style="margin:16px 0 0">Still missing: {{ c.missing|join(', ') }}.</p><a class="btn gold sm" style="margin-top:14px" href="{{ url_for('profile') }}">Complete my profile</a>
+    {% else %}<p class="small" style="color:var(--ok);margin:16px 0 0;font-weight:600">Your profile is complete.</p>{% endif %}
+  </aside>
+</div>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}

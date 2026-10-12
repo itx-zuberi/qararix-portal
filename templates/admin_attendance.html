@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Attendance{% endblock %}
+{% block content %}
+<div class="pagehead"><div><h1>Attendance records</h1><hr class="rule"><p>{{ rows|length }} record{{ '' if rows|length==1 else 's' }} from {{ d_nice(start) }} to {{ d_nice(end) }}</p></div>
+  <div><a class="btn ghost" href="{{ url_for('admin_attendance_csv', **a) }}">Download CSV</a> <a class="btn gold" href="{{ url_for('admin_attendance_edit') }}">Add / correct</a></div></div>
+<form class="filters" method="get">
+  <div><label>From</label><input type="date" name="from" value="{{ start }}"></div>
+  <div><label>To</label><input type="date" name="to" value="{{ end }}"></div>
+  <div><label>Employee</label><select name="emp"><option value="">All</option>{% for e in emps %}<option value="{{ e.id }}" {{ 'selected' if a.get('emp')==e.id|string }}>{{ e.full_name }} ({{ e.emp_id }})</option>{% endfor %}</select></div>
+  <div><label>Status</label><select name="status"><option value="">All</option>{% for s in ['Present','Late','Absent','Leave'] %}<option {{ 'selected' if a.get('status')==s }}>{{ s }}</option>{% endfor %}</select></div>
+  <div><label>Search</label><input name="q" value="{{ a.get('q','') }}" placeholder="Name or ID"></div>
+  <button class="btn" type="submit">Apply filters</button>
+</form>
+<div class="tablewrap"><table>
+<thead><tr><th>Employee</th><th>ID</th><th>Date</th><th>Check-in</th><th>Check-out</th><th>Hours</th><th>Status</th><th></th></tr></thead><tbody>
+{% for r in rows %}<tr><td><b>{{ r.full_name }}</b></td><td>{{ r.emp_id }}</td><td class="nowrap">{{ d_nice(r.work_date) }}</td><td>{{ t12(r.check_in) }}</td><td>{{ t12(r.check_out) }}</td><td>{{ hours(r) or '—' }}</td><td><span class="tag {{ r.status }}">{{ r.status }}</span></td><td class="right"><a class="small" href="{{ url_for('admin_attendance_edit', user_id=r.user_id, date=r.work_date) }}">Edit</a></td></tr>
+{% else %}<tr><td colspan="8" class="empty">No records match these filters. Try a wider date range.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

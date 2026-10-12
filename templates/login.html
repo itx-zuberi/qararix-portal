@@ -1,0 +1,29 @@
+{% from "_m.html" import flashes, csrf %}
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in · Qararix</title>
+<link rel="icon" href="{{ url_for('static', filename='img/favicon.png') }}">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head><body>
+<div class="login">
+  <section class="hero">
+    <div class="logo"><img src="{{ url_for('static', filename='img/logo.png') }}" alt="Qararix logo"><div><b>QARARIX</b><span>Intelligence That Decides</span></div></div>
+    <div><h1>Team <em>Attendance</em></h1><p>Check in when you arrive, check out when you leave. Your attendance record is kept secure and visible only to you and the administrator.</p></div>
+    <div class="dd"><span>Detect</span><i></i><span>Decide</span><i></i><span>Defend</span></div>
+    <div class="radar"></div><div class="sweep"></div>
+  </section>
+  <section class="formside"><div class="formbox">
+    <div class="mlogo"><img src="{{ url_for('static', filename='img/logo.png') }}" alt=""><b>QARARIX</b></div>
+    <h2>Sign in</h2><p class="muted" style="margin:0 0 24px">Use the Employee ID and password given to you by the administrator.</p>
+    {{ flashes() }}
+    <form method="post" autocomplete="on">{{ csrf() }}
+      <div class="field"><label for="emp">Employee ID</label><input id="emp" name="emp_id" placeholder="e.g. QRX-001" required autofocus autocomplete="username" style="text-transform:uppercase"></div>
+      <div class="field"><label for="pw">Password</label><input id="pw" type="password" name="password" required autocomplete="current-password"></div>
+      <button class="btn gold" style="width:100%;padding:14px" type="submit">Sign in</button>
+    </form>
+    <p class="muted small" style="margin-top:22px">Forgot your password? Ask the administrator to issue a new temporary one.</p>
+  </div></section>
+</div></body></html>

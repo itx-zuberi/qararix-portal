@@ -1,0 +1,5 @@
+Flask>=3.0
+waitress>=3.0
+tzdata
+psycopg2-binary>=2.9
+gunicorn>=21.2; sys_platform != "win32"

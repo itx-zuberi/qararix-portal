@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "_m.html" import avatar, csrf %}
+{% block title %}{{ 'Edit employee' if e else 'Add employee' }}{% endblock %}
+{% block content %}
+<div class="pagehead"><div><h1>{{ e.full_name if e else 'Add employee' }}</h1><hr class="rule"><p>{{ 'Assign the ID and a temporary password. The employee must change it at first login.' if not e else 'Update the details managed by the administrator.' }}</p></div></div>
+<div class="grid split">
+<form method="post" class="card">{{ csrf() }}
+  <div class="row">
+    <div class="field"><label>Employee ID</label><input name="emp_id" value="{{ e.emp_id if e else suggest }}" required style="text-transform:uppercase"><div class="hint">Suggested automatically — change it if you like.</div></div>
+    <div class="field"><label>Full name</label><input name="full_name" value="{{ e.full_name if e }}" required></div>
+    <div class="field"><label>Designation</label><input name="designation" value="{{ e.designation if e }}" placeholder="e.g. Security Analyst"></div>
+    <div class="field"><label>Department</label><input name="department" value="{{ e.department if e }}" placeholder="e.g. Cyber Threat Intelligence"></div>
+    <div class="field"><label>Joining date</label><input type="date" name="joined_on" value="{{ e.joined_on if e }}"></div>
+    {% if not e %}<div class="field"><label>Temporary password</label><input name="password" id="tmp" value="{{ tmp }}" required minlength="8"><div class="hint">Auto-generated. You'll see it once after saving.</div></div>{% endif %}
+  </div>
+  <button class="btn gold" type="submit">{{ 'Save changes' if e else 'Create employee' }}</button> <a class="btn ghost" href="{{ url_for('admin_employees') }}">Back</a>
+</form>
+{% if e %}{% set c = completion(e) %}
+<aside class="card"><div class="person" style="margin-bottom:16px">{{ avatar(e,'lg') }}<div><b>{{ e.full_name }}</b><small>{{ e.emp_id }}</small></div></div>
+  <div class="bar" style="margin-bottom:6px"><i style="width:{{ c.score }}%"></i></div><p class="small muted" style="margin:0 0 14px">Profile {{ c.score }}% complete</p>
+  <ul class="checks small" style="margin:0">
+    <li><span>Phone</span><span>{{ e.phone or '—' }}</span></li><li><span>Email</span><span>{{ e.email or '—' }}</span></li>
+    <li><span>CNIC</span><span>{{ e.cnic or '—' }}</span></li><li><span>Date of birth</span><span>{{ e.dob or '—' }}</span></li>
+    <li><span>Address</span><span style="text-align:right;max-width:60%">{{ e.address or '—' }}</span></li>
+    <li><span>Emergency</span><span>{{ (e.emg_name ~ ' · ' ~ e.emg_phone) if e.emg_name else '—' }}</span></li>
+    <li><span>This month</span><span>{{ st.p or 0 }} on time · {{ st.l or 0 }} late</span></li></ul>
+</aside>{% endif %}
+</div>
+{% endblock %}

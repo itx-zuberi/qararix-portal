@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% from "_m.html" import avatar, csrf %}
+{% block title %}Employees{% endblock %}
+{% block content %}
+<div class="pagehead"><div><h1>Employees</h1><hr class="rule"></div><a class="btn gold" href="{{ url_for('admin_employee_new') }}">Add employee</a></div>
+<div class="tablewrap"><table>
+<thead><tr><th>Employee</th><th>ID</th><th>Designation</th><th>Contact</th><th>Profile</th><th>Status</th><th></th></tr></thead><tbody>
+{% for e in rows %}{% set c = completion(e) %}<tr>
+<td><div class="person">{{ avatar(e,'sm') }}<div><b>{{ e.full_name }}</b><small>{{ e.department or '—' }}</small></div></div></td>
+<td>{{ e.emp_id }}</td><td>{{ e.designation or '—' }}</td>
+<td class="small">{{ e.phone or '—' }}<br><span class="muted">{{ e.email }}</span></td>
+<td><div class="bar"><i style="width:{{ c.score }}%"></i></div><small class="muted">{{ c.score }}%</small></td>
+<td><span class="tag {{ 'on' if e.active else 'off' }}">{{ 'Active' if e.active else 'Inactive' }}</span></td>
+<td class="right nowrap"><a class="btn ghost sm" href="{{ url_for('admin_employee_edit', uid=e.id) }}">View / edit</a>
+<form class="inline" method="post" action="{{ url_for('admin_employee_reset', uid=e.id) }}" onsubmit="return confirm('Issue a new temporary password for {{ e.full_name }}?')">{{ csrf() }}<button class="btn ghost sm">Reset password</button></form>
+<form class="inline" method="post" action="{{ url_for('admin_employee_toggle', uid=e.id) }}">{{ csrf() }}<button class="btn danger sm">{{ 'Deactivate' if e.active else 'Activate' }}</button></form></td></tr>
+{% else %}<tr><td colspan="7" class="empty">No employees yet. Add your first employee to give them a login.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

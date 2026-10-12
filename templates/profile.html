@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "_m.html" import avatar, csrf %}
+{% block title %}My profile{% endblock %}
+{% block content %}
+{% set c = completion(u) %}
+<div class="pagehead"><div><h1>My profile</h1><hr class="rule"><p>Keep your details up to date. Only you and the administrator can see them.</p></div></div>
+<div class="grid split">
+<form method="post" enctype="multipart/form-data" class="card">{{ csrf() }}
+  <div class="person" style="gap:20px;margin-bottom:24px">
+    {{ avatar(u, 'lg') }}
+    <div style="flex:1"><label for="photo">Profile photo</label><input id="photo" type="file" name="photo" accept="image/jpeg,image/png,image/webp"><div class="hint">JPG, PNG or WEBP, up to 3 MB. A clear, front-facing photo works best.</div></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Full name</label><input value="{{ u['full_name'] }}" disabled></div>
+    <div class="field"><label>Employee ID</label><input value="{{ u['emp_id'] }}" disabled></div>
+    <div class="field"><label>Designation</label><input value="{{ u['designation'] or '—' }}" disabled></div>
+    <div class="field"><label>Department</label><input value="{{ u['department'] or '—' }}" disabled></div>
+  </div>
+  <p class="hint" style="margin-top:-6px;margin-bottom:20px">Name, ID, designation and department are managed by the administrator.</p>
+  <div class="row">
+    <div class="field"><label for="phone">Phone number</label><input id="phone" name="phone" value="{{ u['phone'] }}" placeholder="0300-1234567" inputmode="tel"></div>
+    <div class="field"><label for="email">Email address</label><input id="email" type="email" name="email" value="{{ u['email'] }}" placeholder="name@example.com"></div>
+    <div class="field"><label for="cnic">CNIC</label><input id="cnic" name="cnic" value="{{ u['cnic'] }}" placeholder="12345-1234567-1" inputmode="numeric"></div>
+    <div class="field"><label for="dob">Date of birth</label><input id="dob" type="date" name="dob" value="{{ u['dob'] }}"></div>
+  </div>
+  <div class="field"><label for="address">Home address</label><textarea id="address" name="address" maxlength="250">{{ u['address'] }}</textarea></div>
+  <div class="row">
+    <div class="field"><label for="en">Emergency contact name</label><input id="en" name="emg_name" value="{{ u['emg_name'] }}"></div>
+    <div class="field"><label for="ep">Emergency contact phone</label><input id="ep" name="emg_phone" value="{{ u['emg_phone'] }}" inputmode="tel"></div>
+  </div>
+  <button class="btn gold" type="submit">Save profile</button>
+</form>
+<aside class="card" style="text-align:center">
+  <h3 style="margin-bottom:16px">Profile completion</h3>
+  <div class="ring" style="--p:{{ c.score }}"><div>{{ c.score }}%</div></div>
+  <ul class="checks" style="text-align:left">
+    {% for label, w, ok in c.parts %}<li><span>{{ label }}</span><span class="{{ 'y' if ok else 'n' }}">{{ '✓ ' ~ w ~ '%' if ok else '+' ~ w ~ '%' }}</span></li>{% endfor %}
+  </ul>
+</aside>
+</div>
+{% endblock %}

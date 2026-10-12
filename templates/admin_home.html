@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from "_m.html" import avatar, csrf %}
+{% block title %}Overview{% endblock %}
+{% block content %}
+<div class="pagehead"><div><h1>Today at Qararix</h1><hr class="rule"><p>{{ now.strftime('%A, %d %B %Y') }}</p></div>
+  <a class="btn ghost" href="{{ url_for('admin_attendance_edit') }}">Add / correct a record</a></div>
+<div class="grid g4" style="margin-bottom:26px">
+  <div class="card stat dark"><div class="n">{{ total }}</div><div class="l">Active employees</div></div>
+  <div class="card stat blue"><div class="n">{{ present|length }}</div><div class="l">Checked in</div></div>
+  <div class="card stat warn"><div class="n">{{ late }}</div><div class="l">Late</div></div>
+  <div class="card stat"><div class="n">{{ absent|length }}</div><div class="l">Not checked in yet</div></div>
+</div>
+<div class="grid split" style="grid-template-columns:minmax(0,1fr) 320px">
+  <div><h2 style="margin-bottom:12px">Checked in today</h2>
+  <div class="tablewrap"><table><thead><tr><th>Employee</th><th>In</th><th>Out</th><th>Status</th></tr></thead><tbody>
+  {% for r in present %}<tr><td><div class="person">{{ avatar(r,'sm') }}<div><b>{{ r.full_name }}</b><small>{{ r.emp_id }}</small></div></div></td><td>{{ t12(r.check_in) }}</td><td>{{ t12(r.check_out) }}</td><td><span class="tag {{ r.status }}">{{ r.status }}</span></td></tr>
+  {% else %}<tr><td colspan="4" class="empty">Nobody has checked in yet today.</td></tr>{% endfor %}</tbody></table></div></div>
+  <div class="card"><h3 style="margin-bottom:12px">Not checked in</h3>
+    {% for u in absent %}<div class="person" style="padding:8px 0;border-bottom:1px solid #EFEBE2">{{ avatar(u,'sm') }}<div style="flex:1"><b>{{ u.full_name }}</b><small>{{ u.emp_id }}</small></div><a class="small" href="{{ url_for('admin_attendance_edit', user_id=u.id, date=today) }}">Mark</a></div>
+    {% else %}<p class="muted">Everyone is in.</p>{% endfor %}</div>
+</div>
+{% endblock %}

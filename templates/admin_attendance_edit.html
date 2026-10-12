@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% from "_m.html" import csrf %}
+{% block title %}Edit attendance{% endblock %}
+{% block content %}
+<div class="pagehead"><div><h1>Add or correct attendance</h1><hr class="rule"><p>Saving replaces any existing record for that employee and date.</p></div></div>
+<form method="post" class="card" style="max-width:560px">{{ csrf() }}
+  <div class="field"><label>Employee</label><select name="user_id" required><option value="">Choose…</option>{% for e in emps %}<option value="{{ e.id }}" {{ 'selected' if uid==e.id|string }}>{{ e.full_name }} ({{ e.emp_id }})</option>{% endfor %}</select></div>
+  <div class="row"><div class="field"><label>Date</label><input type="date" name="date" value="{{ day }}" required></div>
+  <div class="field"><label>Status</label><select name="status">{% for s in ['Present','Late','Absent','Leave'] %}<option {{ 'selected' if rec and rec.status==s }}>{{ s }}</option>{% endfor %}</select></div>
+  <div class="field"><label>Check-in time</label><input type="time" step="1" name="check_in" value="{{ rec.check_in if rec and rec.check_in }}"></div>
+  <div class="field"><label>Check-out time</label><input type="time" step="1" name="check_out" value="{{ rec.check_out if rec and rec.check_out }}"></div></div>
+  <div class="field"><label>Note</label><input name="note" maxlength="200" value="{{ rec.note if rec }}" placeholder="Optional, e.g. forgot to check in"></div>
+  <button class="btn gold" type="submit">Save record</button> <a class="btn ghost" href="{{ url_for('admin_attendance') }}">Cancel</a>
+</form>
+{% endblock %}

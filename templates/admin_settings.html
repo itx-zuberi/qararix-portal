@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% from "_m.html" import csrf %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="pagehead"><div><h1>Settings</h1><hr class="rule"><p>Controls when a check-in counts as late.</p></div></div>
+<form method="post" class="card" style="max-width:520px">{{ csrf() }}
+  <div class="field"><label>Office start time</label><input type="time" name="office_start" value="{{ s.office_start }}" required></div>
+  <div class="field"><label>Grace period (minutes)</label><input type="number" min="0" max="180" name="grace_minutes" value="{{ s.grace_minutes }}" required><div class="hint">Check-ins after start time + grace are marked Late.</div></div>
+  <div class="field"><label>Timezone</label><input name="timezone" value="{{ s.timezone }}" required><div class="hint">IANA name, e.g. Asia/Karachi, Asia/Dubai, Europe/London.</div></div>
+  <button class="btn gold" type="submit">Save settings</button>
+</form>
+{% endblock %}
