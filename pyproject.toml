@@ -1,0 +1,12 @@
+[project]
+name = "qararix-portal"
+version = "1.0.0"
+requires-python = ">=3.9"
+dependencies = [
+    "Flask>=3.0",
+    "tzdata",
+    "psycopg2-binary>=2.9",
+]
+
+[tool.vercel]
+entrypoint = "portal:app"
