@@ -9,7 +9,8 @@
   --body:'Figtree','Segoe UI',system-ui,-apple-system,sans-serif;
 }
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+button,a,.btn,select{touch-action:manipulation}
 body{margin:0;font-family:var(--body);color:var(--ink);background:var(--paper);font-size:15px;line-height:1.5}
 h1,h2,h3{font-family:var(--head);font-weight:700;letter-spacing:.01em;margin:0;line-height:1.1}
 h1{font-size:2.2rem;text-transform:uppercase} h2{font-size:1.45rem;text-transform:uppercase} h3{font-size:1.15rem}
@@ -102,8 +103,12 @@ tr:last-child td{border-bottom:0} tbody tr:hover{background:#FBFAF6}
 .punch:hover{transform:scale(1.04)}
 .punch.out{background:radial-gradient(circle at 35% 30%,#fff,#d9deea);color:var(--navy);box-shadow:0 0 0 10px rgba(255,255,255,.12),0 0 0 22px rgba(255,255,255,.05)}
 .punch.done{background:#1d2b4a;color:#8d9bb8;cursor:default;box-shadow:0 0 0 10px rgba(255,255,255,.05);font-size:1.2rem;transform:none}
-@media (prefers-reduced-motion:no-preference){.punch:not(.done){animation:pulse 2.8s ease-in-out infinite}
-  @keyframes pulse{50%{box-shadow:0 0 0 14px rgba(184,151,90,.22),0 0 0 30px rgba(184,151,90,.07)}}}
+.punch{position:relative}
+@media (prefers-reduced-motion:no-preference){
+  /* ring animates transform+opacity only (GPU-friendly) - the old box-shadow pulse made phones lag */
+  .punch:not(.done)::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:3px solid rgba(184,151,90,.55);animation:ring 2.6s ease-out infinite;pointer-events:none}
+  .punch.out:not(.done)::after{border-color:rgba(255,255,255,.4)}
+  @keyframes ring{from{transform:scale(1);opacity:.9}to{transform:scale(1.28);opacity:0}}}
 
 /* ---------- completion ring ---------- */
 .ring{--p:0;width:132px;height:132px;border-radius:50%;margin:0 auto;display:grid;place-items:center;
@@ -120,7 +125,7 @@ tr:last-child td{border-bottom:0} tbody tr:hover{background:#FBFAF6}
 .hero{background:var(--navy);color:#fff;padding:56px 64px;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between}
 .hero .radar{position:absolute;right:-220px;bottom:-220px;width:760px;height:760px;border-radius:50%;
   background:repeating-radial-gradient(circle,transparent 0 46px,rgba(255,255,255,.06) 46px 47px)}
-.hero .sweep{position:absolute;right:-220px;bottom:-220px;width:760px;height:760px;border-radius:50%;
+.hero .sweep{will-change:transform;position:absolute;right:-220px;bottom:-220px;width:760px;height:760px;border-radius:50%;
   background:conic-gradient(from 0deg,rgba(184,151,90,.0) 0deg,rgba(184,151,90,.28) 40deg,rgba(184,151,90,0) 41deg)}
 @media (prefers-reduced-motion:no-preference){.hero .sweep{animation:sweep 9s linear infinite}@keyframes sweep{to{transform:rotate(360deg)}}}
 .hero > *{position:relative}
@@ -153,3 +158,50 @@ tr:last-child td{border-bottom:0} tbody tr:hover{background:#FBFAF6}
   .clockpanel{grid-template-columns:1fr;text-align:center;padding:26px 20px}.clockpanel .times{justify-content:center}.punch{margin:0 auto}
   .clock{font-size:3.6rem} h1{font-size:1.8rem}
 }
+
+/* ================= mobile / tablet (app-style) ================= */
+@media (max-width:1000px){
+  body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+  .side{position:sticky;top:0;z-index:30;flex-direction:row;flex-wrap:nowrap;justify-content:space-between;align-items:center;
+    padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top));padding-left:calc(14px + env(safe-area-inset-left));padding-right:calc(14px + env(safe-area-inset-right))}
+  .brand img{width:34px}.brand b{font-size:1.35rem}
+  /* bottom tab bar */
+  .nav{position:fixed;left:0;right:0;bottom:0;z-index:40;margin:0;width:auto;order:0;flex-direction:row;flex-wrap:nowrap;justify-content:space-around;gap:2px;
+    background:var(--navy);border-top:1px solid rgba(184,151,90,.35);padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+  .nav a{flex:1;min-width:0;flex-direction:column;justify-content:center;gap:3px;padding:7px 2px;min-height:56px;border-radius:10px;font-size:.68rem;text-align:center;line-height:1.15}
+  .nav a.on{box-shadow:none;background:var(--navy-3);color:var(--gold-l)}
+  .nav a svg{width:22px;height:22px}
+  .me{margin-left:auto}.me button{min-height:38px;padding:6px 12px}
+  .main{padding:20px 16px 24px;padding-left:calc(16px + env(safe-area-inset-left));padding-right:calc(16px + env(safe-area-inset-right))}
+}
+@media (max-width:700px){
+  body{font-size:16px}
+  h1{font-size:1.9rem} h2{font-size:1.3rem}
+  input,select,textarea{font-size:16px;min-height:46px}   /* 16px stops iOS zooming into fields */
+  .btn{min-height:46px} .btn.sm{min-height:40px}
+  .pagehead{align-items:stretch} .pagehead > div:last-child{display:flex;gap:10px;flex-wrap:wrap} .pagehead .btn{flex:1}
+  .card{padding:18px} .stat .n{font-size:2.3rem}
+  .grid{gap:14px}
+  .g4{grid-template-columns:1fr 1fr}                       /* admin overview: 2x2 stat tiles */
+  .punch{width:150px;height:150px;font-size:1.5rem}
+  .clock{font-size:3.2rem}
+  .formside{padding:24px 18px;place-items:start center}
+  .formbox h2{font-size:2rem}
+  /* tables become cards */
+  .tablewrap{border:0;background:transparent;overflow:visible}
+  table.stack{min-width:0;display:block}
+  table.stack thead{display:none}
+  table.stack tbody{display:block}
+  table.stack tr{display:block;background:#fff;border:1px solid var(--line);border-radius:14px;padding:4px 14px;margin-bottom:12px}
+  table.stack tbody tr:hover{background:#fff}
+  table.stack td{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:9px 0;border-bottom:1px dashed #EFEBE2;text-align:right}
+  table.stack td:last-child{border-bottom:0}
+  table.stack td[data-label]::before{content:attr(data-label);flex:none;font-size:.74rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);text-align:left}
+  table.stack td:first-child{justify-content:flex-start;text-align:left;font-weight:600}
+  table.stack td:first-child::before{display:none}
+  table.stack td:not([data-label]){justify-content:flex-end;flex-wrap:wrap;gap:8px}
+  table.stack td:first-child:not([data-label]){justify-content:flex-start}
+  table.stack td.empty{display:block;text-align:center;font-weight:400}
+  table.stack td.right{justify-content:flex-end;flex-wrap:wrap}
+}
+@media (max-width:380px){ .g4,.g3{grid-template-columns:1fr} .nav a{font-size:.62rem} }

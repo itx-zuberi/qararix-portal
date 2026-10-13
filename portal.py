@@ -7,7 +7,9 @@ import io
 import os
 import re
 import secrets
+import hashlib
 import sqlite3
+import threading
 import time
 from datetime import datetime, timedelta
 from functools import wraps
@@ -86,6 +88,7 @@ CREATE TABLE IF NOT EXISTS attendance(
   ip TEXT DEFAULT '', note TEXT DEFAULT '',
   UNIQUE(user_id, work_date)
 );
+CREATE INDEX IF NOT EXISTS idx_att_date ON attendance(work_date);
 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS photos(
   user_id INTEGER PRIMARY KEY REFERENCES users(id),
@@ -99,22 +102,79 @@ DEFAULT_SETTINGS = {"office_start": "09:00", "grace_minutes": "15",
 
 
 # ------------------------------------------------------------------ database
+_tl = threading.local()
+
+
+def _new_pg_conn():
+    return psycopg2.connect(DATABASE_URL, connect_timeout=10,
+                            cursor_factory=psycopg2.extras.RealDictCursor,
+                            keepalives=1, keepalives_idle=30, keepalives_interval=10, keepalives_count=3)
+
+
 class _PG:
-    """Tiny wrapper so the same SQL ('?' placeholders) runs on PostgreSQL and SQLite."""
-    def __init__(self):
-        self.conn = psycopg2.connect(DATABASE_URL, connect_timeout=10,
-                                     cursor_factory=psycopg2.extras.RealDictCursor)
+    """SQL wrapper ('?' placeholders) for PostgreSQL.
+    In a web request (shared=True) it re-uses ONE warm connection per process, so there is no new TCP+TLS
+    handshake to the database on every page view. GET requests run in autocommit, so no transaction is left open."""
+    def __init__(self, shared=False, autocommit=False):
+        self.shared, self.autocommit, self.dirty = shared, autocommit, False
+        self.conn = self._open()
+
+    def _open(self):
+        idle = psycopg2.extensions.TRANSACTION_STATUS_IDLE
+        if self.shared:
+            c = getattr(_tl, "conn", None)
+            if c is None or c.closed:
+                c = _tl.conn = _new_pg_conn()
+            else:
+                try:  # drop a half-finished transaction left behind by an earlier request
+                    if c.get_transaction_status() != idle:
+                        c.rollback()
+                except Exception:
+                    c = _tl.conn = _new_pg_conn()
+        else:
+            c = _new_pg_conn()
+        c.autocommit = self.autocommit
+        return c
 
     def execute(self, sql, params=()):
-        cur = self.conn.cursor()
-        cur.execute(sql.replace("?", "%s"), params)
+        q = sql.replace("?", "%s")
+        for attempt in (0, 1):
+            try:
+                cur = self.conn.cursor()
+                cur.execute(q, params)
+                break
+            except (psycopg2.OperationalError, psycopg2.InterfaceError):
+                # the pooler/server may have dropped an idle connection: reconnect once (only if nothing was written yet)
+                if attempt or self.dirty or not self.shared:
+                    raise
+                try:
+                    self.conn.close()
+                except Exception:
+                    pass
+                _tl.conn = None
+                self.conn = self._open()
+        if q.lstrip()[:6].upper() != "SELECT":
+            self.dirty = True
         return cur
 
     def commit(self):
         self.conn.commit()
+        self.dirty = False
 
     def close(self):
-        self.conn.close()
+        if not self.shared:
+            self.conn.close()
+            return
+        try:
+            if not self.conn.autocommit and \
+                    self.conn.get_transaction_status() != psycopg2.extensions.TRANSACTION_STATUS_IDLE:
+                self.conn.rollback()
+        except Exception:
+            try:
+                self.conn.close()
+            except Exception:
+                pass
+            _tl.conn = None
 
 
 def connect():
@@ -132,7 +192,7 @@ def blob(b):
 
 def db():
     if "db" not in g:
-        g.db = connect()
+        g.db = _PG(shared=True, autocommit=request.method in ("GET", "HEAD")) if IS_PG else connect()
     return g.db
 
 
@@ -143,30 +203,57 @@ def close_db(_):
         d.close()
 
 
+SCHEMA_V = "2"
+
+
 def init_db():
     con = connect()
-    if IS_PG:
-        con.execute(SCHEMA)
-    else:
-        con.execute("PRAGMA journal_mode=WAL")
-        con.executescript(SCHEMA)
-    for k, v in DEFAULT_SETTINGS.items():
-        con.execute("INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO NOTHING", (k, v))
-    con.execute("UPDATE users SET photo='' WHERE photo<>'' AND id NOT IN (SELECT user_id FROM photos)")
-    if not con.execute("SELECT 1 FROM users WHERE role='admin'").fetchone():
-        pw = os.environ.get("QARARIX_ADMIN_PASSWORD") or (gen_password() if IS_PG else "Qararix@123")
-        con.execute(
-            "INSERT INTO users(emp_id,full_name,role,password_hash,must_change,designation)"
-            " VALUES('ADMIN','Administrator','admin',?,1,'System Administrator') ON CONFLICT(emp_id) DO NOTHING",
-            (generate_password_hash(pw),))
-        print("\n  First run: admin login -> ID: ADMIN   Password: %s  (you must change it on first login)\n" % pw, flush=True)
-    con.commit()
-    con.close()
+    try:
+        try:  # already set up? then skip every setup query (much faster cold start)
+            r = con.execute("SELECT value FROM settings WHERE key='schema_v'").fetchone()
+            if r and r["value"] == SCHEMA_V:
+                return
+        except Exception:
+            if IS_PG:
+                con.conn.rollback()
+        if IS_PG:
+            con.execute(SCHEMA)
+        else:
+            con.execute("PRAGMA journal_mode=WAL")
+            con.executescript(SCHEMA)
+        for k, v in DEFAULT_SETTINGS.items():
+            con.execute("INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO NOTHING", (k, v))
+        con.execute("UPDATE users SET photo='' WHERE photo<>'' AND id NOT IN (SELECT user_id FROM photos)")
+        if not con.execute("SELECT 1 FROM users WHERE role='admin'").fetchone():
+            pw = os.environ.get("QARARIX_ADMIN_PASSWORD") or (gen_password() if IS_PG else "Qararix@123")
+            con.execute(
+                "INSERT INTO users(emp_id,full_name,role,password_hash,must_change,designation)"
+                " VALUES('ADMIN','Administrator','admin',?,1,'System Administrator') ON CONFLICT(emp_id) DO NOTHING",
+                (generate_password_hash(pw),))
+            print("\n  First run: admin login -> ID: ADMIN   Password: %s  (you must change it on first login)\n" % pw, flush=True)
+        con.execute("INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", ("schema_v", SCHEMA_V))
+        con.commit()
+    finally:
+        con.close()
+
+
+_SETCACHE = {"t": 0.0, "v": None}
+
+
+def all_settings():
+    """All settings in ONE query, cached for 30 s (they almost never change)."""
+    c = _SETCACHE
+    if c["v"] is not None and time.time() - c["t"] < 30:
+        return c["v"]
+    v = dict(DEFAULT_SETTINGS)
+    for r in db().execute("SELECT key,value FROM settings").fetchall():
+        v[r["key"]] = r["value"]
+    c["v"], c["t"] = v, time.time()
+    return v
 
 
 def setting(key):
-    r = db().execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
-    return r["value"] if r else DEFAULT_SETTINGS.get(key, "")
+    return all_settings().get(key, DEFAULT_SETTINGS.get(key, ""))
 
 
 def now():
@@ -224,7 +311,23 @@ def csrf_token():
     return session["_csrf"]
 
 
-app.jinja_env.globals.update(initials=lambda n: "".join(w[0] for w in n.split()[:2]).upper(), csrf_token=csrf_token, completion=completion,
+_ASSET_V = {}
+
+
+def asset(filename):
+    """URL of a static file with a content hash, so browsers/CDN can cache it for a year safely."""
+    v = _ASSET_V.get(filename)
+    if v is None:
+        try:
+            with open(os.path.join(app.static_folder, filename), "rb") as fh:
+                v = hashlib.md5(fh.read()).hexdigest()[:8]
+        except OSError:
+            v = "0"
+        _ASSET_V[filename] = v
+    return url_for("static", filename=filename, v=v)
+
+
+app.jinja_env.globals.update(asset=asset, initials=lambda n: "".join(w[0] for w in n.split()[:2]).upper(), csrf_token=csrf_token, completion=completion,
                              hours=hours, t12=t12, d_nice=d_nice)
 
 
@@ -368,15 +471,15 @@ def dashboard():
     if g.user["role"] == "admin":
         return redirect(url_for("admin_home"))
     n = now()
+    today = n.strftime("%Y-%m-%d")
     rows = db().execute("SELECT * FROM attendance WHERE user_id=? ORDER BY work_date DESC LIMIT 31",
                         (g.user["id"],)).fetchall()
-    month = n.strftime("%Y-%m")
-    stats = db().execute(
-        "SELECT SUM(CASE WHEN status='Present' THEN 1 ELSE 0 END) p, SUM(CASE WHEN status='Late' THEN 1 ELSE 0 END) l FROM attendance "
-        "WHERE user_id=? AND work_date LIKE ?", (g.user["id"], month + "%")).fetchone()
-    return render_template("dashboard.html", rec=today_record(g.user["id"]), rows=rows, now=n,
-                           stats=stats, tzname=setting("timezone"),
-                           office_start=setting("office_start"))
+    rec = next((r for r in rows if r["work_date"] == today), None)
+    month = [r for r in rows if r["work_date"].startswith(n.strftime("%Y-%m"))]
+    stats = {"p": sum(1 for r in month if r["status"] == "Present"),
+             "l": sum(1 for r in month if r["status"] == "Late")}
+    return render_template("dashboard.html", rec=rec, rows=rows, now=n, stats=stats,
+                           tzname=setting("timezone"), office_start=setting("office_start"))
 
 
 @app.route("/checkin", methods=["POST"])
@@ -507,7 +610,7 @@ def admin_home():
                            late=late, today=today, now=now())
 
 
-def attendance_query():
+def attendance_query(limit=None):
     n = now()
     a = request.args
     start = a.get("from") or n.strftime("%Y-%m-01")
@@ -525,13 +628,15 @@ def attendance_query():
         q += " AND (LOWER(u.full_name) LIKE ? OR LOWER(u.emp_id) LIKE ?)"
         p += ["%" + a["q"].lower() + "%"] * 2
     q += " ORDER BY a.work_date DESC, a.check_in DESC"
+    if limit:
+        q += " LIMIT %d" % limit
     return db().execute(q, p).fetchall(), start, end
 
 
 @app.route("/admin/attendance")
 @admin_required
 def admin_attendance():
-    rows, start, end = attendance_query()
+    rows, start, end = attendance_query(limit=1000)
     emps = db().execute("SELECT id,emp_id,full_name FROM users WHERE role='employee' ORDER BY full_name").fetchall()
     return render_template("admin_attendance.html", rows=rows, start=start, end=end, emps=emps, a=request.args)
 
@@ -681,6 +786,7 @@ def admin_settings():
             for k in ("office_start", "grace_minutes", "timezone"):
                 db().execute("INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (k, f[k].strip()))
             db().commit()
+            _SETCACHE["v"] = None
             flash("Settings saved.", "ok")
     return render_template("admin_settings.html", s={k: setting(k) for k in DEFAULT_SETTINGS})
 

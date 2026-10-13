@@ -6,6 +6,3 @@ __pycache__/
 .env.*
 !.env.example
 .vercel/
-
-.vercel
-.env*

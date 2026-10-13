@@ -19,7 +19,7 @@ if (Test-Path ".\.env") {
 
 git add -A
 git status --short
-$msg = "Update portal: SECRET_KEY from environment"
+$msg = "Update portal " + (Get-Date -Format "yyyy-MM-dd HH:mm")
 git commit -m $msg
 if ($LASTEXITCODE -ne 0) { Write-Host "Nothing new to commit (or commit failed). Continuing to push." -ForegroundColor Yellow }
 git push origin main

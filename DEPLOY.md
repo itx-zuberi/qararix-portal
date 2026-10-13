@@ -24,3 +24,8 @@ Phir har dafa:
 
 ## 4. Vercel > Deployments
 Naya deployment (naya ID) Ready hone ka intezar karein, phir site kholein.
+
+## Speed notes
+- vercel.json puts the function in Sydney (syd1), next to the Supabase database (ap-southeast-2).
+- The database connection is re-used between requests; settings are cached for 30 s.
+- If your Supabase project is in another region, change "syd1" in vercel.json to the nearest Vercel region.
