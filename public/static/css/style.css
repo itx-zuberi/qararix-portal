@@ -205,3 +205,8 @@ tr:last-child td{border-bottom:0} tbody tr:hover{background:#FBFAF6}
   table.stack td.right{justify-content:flex-end;flex-wrap:wrap}
 }
 @media (max-width:380px){ .g4,.g3{grid-template-columns:1fr} .nav a{font-size:.62rem} }
+
+/* vacant-ID chips */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.chip{border:1px dashed var(--gold);background:#fff;color:var(--ink);border-radius:99px;padding:6px 14px;min-height:36px;font:inherit;font-weight:600;font-size:.85rem;cursor:pointer}
+.chip:hover{background:var(--gold-l)}

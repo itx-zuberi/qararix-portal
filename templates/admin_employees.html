@@ -13,7 +13,8 @@
 <td><span class="tag {{ 'on' if e.active else 'off' }}">{{ 'Active' if e.active else 'Inactive' }}</span></td>
 <td class="right nowrap"><a class="btn ghost sm" href="{{ url_for('admin_employee_edit', uid=e.id) }}">View / edit</a>
 <form class="inline" method="post" action="{{ url_for('admin_employee_reset', uid=e.id) }}" onsubmit="return confirm('Issue a new temporary password for {{ e.full_name }}?')">{{ csrf() }}<button class="btn ghost sm">Reset password</button></form>
-<form class="inline" method="post" action="{{ url_for('admin_employee_toggle', uid=e.id) }}">{{ csrf() }}<button class="btn danger sm">{{ 'Deactivate' if e.active else 'Activate' }}</button></form></td></tr>
+<form class="inline" method="post" action="{{ url_for('admin_employee_toggle', uid=e.id) }}">{{ csrf() }}<button class="btn danger sm">{{ 'Deactivate' if e.active else 'Activate' }}</button></form>
+<form class="inline" method="post" action="{{ url_for('admin_employee_delete', uid=e.id) }}" data-confirm="Delete {{ e.full_name }} ({{ e.emp_id }}) PERMANENTLY?&#10;&#10;Their profile, photo and ALL attendance records will be erased and cannot be recovered.&#10;The ID becomes free to assign again.">{{ csrf() }}<button class="btn danger sm">Delete</button></form></td></tr>
 {% else %}<tr><td colspan="7" class="empty">No employees yet. Add your first employee to give them a login.</td></tr>{% endfor %}
 </tbody></table></div>
 {% endblock %}

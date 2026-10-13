@@ -4,9 +4,11 @@
 {% block content %}
 <div class="pagehead"><div><h1>{{ e.full_name if e else 'Add employee' }}</h1><hr class="rule"><p>{{ 'Assign the ID and a temporary password. The employee must change it at first login.' if not e else 'Update the details managed by the administrator.' }}</p></div></div>
 <div class="grid split">
+<div>
 <form method="post" class="card">{{ csrf() }}
   <div class="row">
-    <div class="field"><label>Employee ID</label><input name="emp_id" value="{{ e.emp_id if e else suggest }}" required style="text-transform:uppercase"><div class="hint">Suggested automatically — change it if you like.</div></div>
+    <div class="field"><label>Employee ID</label><input name="emp_id" value="{{ e.emp_id if e else suggest }}" required style="text-transform:uppercase"><div class="hint">Lowest free ID is suggested automatically — change it if you like.</div>
+      {% if vacant %}<div class="hint" style="margin-top:8px">Vacant IDs you can reuse (tap to use):</div><div class="chips">{% for v in vacant %}<button type="button" class="chip" data-fill="{{ v }}">{{ v }}</button>{% endfor %}</div>{% endif %}</div>
     <div class="field"><label>Full name</label><input name="full_name" value="{{ e.full_name if e }}" required></div>
     <div class="field"><label>Designation</label><input name="designation" value="{{ e.designation if e }}" placeholder="e.g. Security Analyst"></div>
     <div class="field"><label>Department</label><input name="department" value="{{ e.department if e }}" placeholder="e.g. Cyber Threat Intelligence"></div>
@@ -15,6 +17,12 @@
   </div>
   <button class="btn gold" type="submit">{{ 'Save changes' if e else 'Create employee' }}</button> <a class="btn ghost" href="{{ url_for('admin_employees') }}">Back</a>
 </form>
+{% if e %}<form class="card" method="post" action="{{ url_for('admin_employee_delete', uid=e.id) }}" style="border-color:#efc2bd" data-confirm="Delete {{ e.full_name }} ({{ e.emp_id }}) PERMANENTLY?&#10;&#10;Their profile, photo and ALL attendance records will be erased and cannot be recovered.&#10;The ID becomes free to assign again.">{{ csrf() }}
+  <h3 style="color:var(--bad);margin-bottom:8px">Delete this employee</h3>
+  <p class="small muted" style="margin:0 0 14px">Removes the profile, photo and <b>all attendance records</b> permanently, and frees the ID <b>{{ e.emp_id }}</b> so you can assign it to a new employee. To only stop their login but keep their history, use <b>Deactivate</b> on the Employees list instead.</p>
+  <button class="btn danger" type="submit">Delete permanently</button>
+</form>{% endif %}
+</div>
 {% if e %}{% set c = completion(e) %}
 <aside class="card"><div class="person" style="margin-bottom:16px">{{ avatar(e,'lg') }}<div><b>{{ e.full_name }}</b><small>{{ e.emp_id }}</small></div></div>
   <div class="bar" style="margin-bottom:6px"><i style="width:{{ c.score }}%"></i></div><p class="small muted" style="margin:0 0 14px">Profile {{ c.score }}% complete</p>

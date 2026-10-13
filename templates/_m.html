@@ -1,5 +1,5 @@
 {% macro avatar(u, cls='') -%}
-<div class="av {{ cls }}">{% if u['photo'] %}<img src="{{ url_for('avatar', uid=(u['user_id'] if u['user_id'] is defined else u['id']), v=u['photo']) }}" alt="">{% else %}{{ initials(u['full_name']) }}{% endif %}</div>
+<div class="av {{ cls }}">{% if u['photo'] %}<img src="{{ url_for('avatar', uid=(u['user_id'] if u['user_id'] is defined else u['id']), v=u['photo']) }}" alt="" loading="lazy" decoding="async">{% else %}{{ initials(u['full_name']) }}{% endif %}</div>
 {%- endmacro %}
 {% macro flashes() -%}
 {% for cat, msg in get_flashed_messages(with_categories=true) %}<div class="flash {{ cat }}" role="alert">{{ msg }}</div>{% endfor %}

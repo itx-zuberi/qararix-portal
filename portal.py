@@ -385,10 +385,18 @@ def gen_password(n=10):
     return "".join(secrets.choice(alphabet) for _ in range(n)) + "#"
 
 
+def id_plan():
+    """(next ID to suggest, list of vacant IDs). Vacant = a free QRX-number below the highest one in use,
+    e.g. after an employee was deleted. The lowest free number is suggested first."""
+    nums = {int(m.group(1)) for r in db().execute("SELECT emp_id FROM users")
+            if (m := re.fullmatch(r"QRX-(\d+)", r["emp_id"]))}
+    top = max(nums, default=0)
+    vacant = ["QRX-%03d" % i for i in range(1, top + 1) if i not in nums]
+    return (vacant[0] if vacant else "QRX-%03d" % (top + 1)), vacant[:12]
+
+
 def next_emp_id():
-    nums = [int(m.group(1)) for r in db().execute("SELECT emp_id FROM users")
-            if (m := re.fullmatch(r"QRX-(\d+)", r["emp_id"]))]
-    return "QRX-%03d" % (max(nums, default=0) + 1)
+    return id_plan()[0]
 
 
 def client_ip():
@@ -590,7 +598,7 @@ def avatar(uid):
     r = db().execute("SELECT mime,data FROM photos WHERE user_id=?", (uid,)).fetchone()
     if not r:
         abort(404)
-    return Response(bytes(r["data"]), mimetype=r["mime"], headers={"Cache-Control": "private, max-age=86400"})
+    return Response(bytes(r["data"]), mimetype=r["mime"], headers={"Cache-Control": "private, max-age=31536000, immutable"})
 
 
 # ------------------------------------------------------------------ admin
@@ -718,7 +726,8 @@ def admin_employee_new():
             db().commit()
             flash("Employee created. Share these login details — ID: %s  Password: %s  (they must change it at first login)" % (d["emp_id"], pw), "cred")
             return redirect(url_for("admin_employees"))
-    return render_template("admin_employee_form.html", e=None, suggest=next_emp_id(), tmp=gen_password())
+    suggest, vacant = id_plan()
+    return render_template("admin_employee_form.html", e=None, suggest=suggest, vacant=vacant, tmp=gen_password())
 
 
 @app.route("/admin/employees/<int:uid>", methods=["GET", "POST"])
@@ -743,7 +752,7 @@ def admin_employee_edit(uid):
     month = now().strftime("%Y-%m")
     st = db().execute("SELECT SUM(CASE WHEN status='Present' THEN 1 ELSE 0 END) p, SUM(CASE WHEN status='Late' THEN 1 ELSE 0 END) l, COUNT(*) n FROM attendance "
                       "WHERE user_id=? AND work_date LIKE ?", (uid, month + "%")).fetchone()
-    return render_template("admin_employee_form.html", e=e, suggest=e["emp_id"], tmp="", st=st)
+    return render_template("admin_employee_form.html", e=e, suggest=e["emp_id"], vacant=id_plan()[1], tmp="", st=st)
 
 
 @app.route("/admin/employees/<int:uid>/reset", methods=["POST"])
@@ -756,6 +765,20 @@ def admin_employee_reset(uid):
     db().execute("UPDATE users SET password_hash=?, must_change=1 WHERE id=?", (generate_password_hash(pw), uid))
     db().commit()
     flash("New temporary password for %s — ID: %s  Password: %s" % (e["full_name"], e["emp_id"], pw), "cred")
+    return redirect(url_for("admin_employees"))
+
+
+@app.route("/admin/employees/<int:uid>/delete", methods=["POST"])
+@admin_required
+def admin_employee_delete(uid):
+    e = db().execute("SELECT * FROM users WHERE id=? AND role='employee'", (uid,)).fetchone()
+    if not e:
+        abort(404)
+    db().execute("DELETE FROM attendance WHERE user_id=?", (uid,))
+    db().execute("DELETE FROM photos WHERE user_id=?", (uid,))
+    db().execute("DELETE FROM users WHERE id=?", (uid,))
+    db().commit()
+    flash("%s (%s) was deleted permanently. The ID %s is free to assign to someone else." % (e["full_name"], e["emp_id"], e["emp_id"]), "ok")
     return redirect(url_for("admin_employees"))
 
 
