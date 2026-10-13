@@ -210,3 +210,9 @@ tr:last-child td{border-bottom:0} tbody tr:hover{background:#FBFAF6}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
 .chip{border:1px dashed var(--gold);background:#fff;color:var(--ink);border-radius:99px;padding:6px 14px;min-height:36px;font:inherit;font-weight:600;font-size:.85rem;cursor:pointer}
 .chip:hover{background:var(--gold-l)}
+
+/* reminders */
+.alertbar{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;background:var(--warn-bg);color:var(--warn);border:1px solid #f0d49a;border-radius:12px;padding:14px 18px;margin-bottom:20px;font-weight:600}
+.rem{margin-bottom:12px}.rem + .rem{margin-top:0}
+.rem.sent{opacity:.6}
+.tag.Absent{white-space:nowrap}

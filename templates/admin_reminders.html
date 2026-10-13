@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Reminders{% endblock %}
+{% block content %}
+<div class="pagehead"><div><h1>WhatsApp reminders</h1><hr class="rule"><p>{{ now.strftime('%A, %d %B %Y') }} &middot; reminders open at {{ rt }}</p></div>
+  {% if is_open and items %}<button class="btn gold" type="button" id="next">Open next &rarr;</button>{% endif %}</div>
+{% if not is_open %}
+  <div class="alertbar">Reminders open at {{ rt }}. It is {{ now.strftime('%H:%M') }} now, so people may still be arriving.</div>
+{% elif items %}
+  <p class="muted small" style="margin:0 0 14px">Tap <b>Send on WhatsApp</b>: WhatsApp opens with the message ready for that person, then you press <b>Send</b> there. (WhatsApp does not allow a website to send messages by itself.) Use <b>Open next</b> to go through the list one by one.</p>
+{% endif %}
+<div id="reminders" data-day="{{ day }}">
+{% for it in items %}
+  <div class="card rem" style="padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <div class="person" style="flex:1;min-width:200px"><div class="av sm">{{ initials(it.u.full_name) }}</div><div><b>{{ it.u.full_name }}</b><small>{{ it.u.emp_id }} &middot; {{ it.phone or 'no phone number' }}</small></div></div>
+    <span class="tag {{ it.kind }}">{{ 'Not checked in' if it.kind == 'Absent' else 'Late' }}</span>
+    {% if not it.link %}<span class="small muted">Add a phone number to the profile first</span>
+    {% elif is_open %}<a class="btn gold sm wa" target="_blank" rel="noopener" href="{{ it.link }}" data-key="{{ it.u.id }}">Send on WhatsApp</a>{% endif %}
+  </div>
+{% else %}
+  <div class="card empty">{{ 'Everyone is on time today.' if is_open else 'Nobody needs a reminder yet.' }}</div>
+{% endfor %}
+</div>
+{% endblock %}

@@ -62,3 +62,25 @@ document.addEventListener('click', function (ev) {
     img.src = url;
   });
 })();
+
+// WhatsApp reminders: remember which people were already opened today, and walk through the list one by one
+(function () {
+  var list = document.getElementById('reminders'); if (!list) return;
+  var key = 'qx-rem-' + list.getAttribute('data-day'), done = {};
+  try { done = JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) {}
+  function mark(a) { a.closest('.rem').classList.add('sent'); a.textContent = 'Opened \u2713 (tap to resend)'; }
+  var links = list.querySelectorAll('a.wa');
+  for (var i = 0; i < links.length; i++) (function (a) {
+    if (done[a.getAttribute('data-key')]) mark(a);
+    a.addEventListener('click', function () {
+      done[a.getAttribute('data-key')] = 1;
+      try { localStorage.setItem(key, JSON.stringify(done)); } catch (e) {}
+      setTimeout(function () { mark(a); }, 50);
+    });
+  })(links[i]);
+  var nb = document.getElementById('next');
+  if (nb) nb.addEventListener('click', function () {
+    var a = list.querySelector('.rem:not(.sent) a.wa');
+    if (a) a.click(); else nb.textContent = 'All opened \u2713';
+  });
+})();

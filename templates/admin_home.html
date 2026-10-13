@@ -4,6 +4,7 @@
 {% block content %}
 <div class="pagehead"><div><h1>Today at Qararix</h1><hr class="rule"><p>{{ now.strftime('%A, %d %B %Y') }}</p></div>
   <a class="btn ghost" href="{{ url_for('admin_attendance_edit') }}">Add / correct a record</a></div>
+{% if remind %}<div class="alertbar"><span>{{ remind }} employee{{ '' if remind == 1 else 's' }} not checked in or late today.</span><a class="btn gold sm" href="{{ url_for('admin_reminders') }}">Send WhatsApp reminders</a></div>{% endif %}
 <div class="grid g4" style="margin-bottom:26px">
   <div class="card stat dark"><div class="n">{{ total }}</div><div class="l">Active employees</div></div>
   <div class="card stat blue"><div class="n">{{ present|length }}</div><div class="l">Checked in</div></div>

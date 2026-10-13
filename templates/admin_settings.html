@@ -2,11 +2,18 @@
 {% from "_m.html" import csrf %}
 {% block title %}Settings{% endblock %}
 {% block content %}
-<div class="pagehead"><div><h1>Settings</h1><hr class="rule"><p>Controls when a check-in counts as late.</p></div></div>
-<form method="post" class="card" style="max-width:520px">{{ csrf() }}
+<div class="pagehead"><div><h1>Settings</h1><hr class="rule"><p>Late rules and WhatsApp reminders.</p></div></div>
+<form method="post" class="card" style="max-width:640px">{{ csrf() }}
   <div class="field"><label>Office start time</label><input type="time" name="office_start" value="{{ s.office_start }}" required></div>
   <div class="field"><label>Grace period (minutes)</label><input type="number" min="0" max="180" name="grace_minutes" value="{{ s.grace_minutes }}" required><div class="hint">Check-ins after start time + grace are marked Late.</div></div>
   <div class="field"><label>Timezone</label><input name="timezone" value="{{ s.timezone }}" required><div class="hint">IANA name, e.g. Asia/Karachi, Asia/Dubai, Europe/London.</div></div>
+  <h3 style="margin:26px 0 12px">WhatsApp reminders</h3>
+  <div class="row">
+    <div class="field"><label>Reminder time</label><input type="time" name="reminder_time" value="{{ s.reminder_time }}" required><div class="hint">Reminders open from this time.</div></div>
+    <div class="field"><label>Country code</label><input name="country_code" value="{{ s.country_code }}" required inputmode="numeric"><div class="hint">92 = Pakistan. Used for numbers like 0300-1234567.</div></div>
+  </div>
+  <div class="field"><label>Message: not checked in</label><textarea name="msg_absent" maxlength="500">{{ s.msg_absent }}</textarea></div>
+  <div class="field"><label>Message: late</label><textarea name="msg_late" maxlength="500">{{ s.msg_late }}</textarea><div class="hint">You can use {name} {date} {time} {office_start} {company}.</div></div>
   <button class="btn gold" type="submit">Save settings</button>
 </form>
 {% endblock %}

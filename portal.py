@@ -13,6 +13,7 @@ import threading
 import time
 from datetime import datetime, timedelta
 from functools import wraps
+from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 from flask import (Flask, Response, abort, flash, g, redirect, render_template,
@@ -98,7 +99,12 @@ CREATE TABLE IF NOT EXISTS photos(
 if IS_PG:
     SCHEMA = SCHEMA.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY").replace("BLOB", "BYTEA")
 DEFAULT_SETTINGS = {"office_start": "09:00", "grace_minutes": "15",
-                    "timezone": "Asia/Karachi", "company": "Qararix"}
+                    "timezone": "Asia/Karachi", "company": "Qararix",
+                    "reminder_time": "10:15", "country_code": "92",
+                    "msg_absent": "Assalam o Alaikum {name}, aap ne aaj ({date}) abhi tak attendance check-in nahi ki. "
+                                  "Barah-e-karam portal par check in karein ya apne manager ko inform karein. - {company}",
+                    "msg_late": "Assalam o Alaikum {name}, aap aaj {time} par check-in hue jab ke office ka waqt {office_start} hai. "
+                                "Aainda waqt par pahunchne ki koshish karein. - {company}"}
 
 
 # ------------------------------------------------------------------ database
@@ -614,8 +620,10 @@ def admin_home():
         "(SELECT user_id FROM attendance WHERE work_date=?) ORDER BY full_name", (today,)).fetchall()
     total = len(present) + len(absent)
     late = sum(1 for r in present if r["status"] == "Late")
+    n = now()
+    need = len(absent) + sum(1 for r in present if r["status"] in ("Late", "Absent"))
     return render_template("admin_home.html", present=present, absent=absent, total=total,
-                           late=late, today=today, now=now())
+                           late=late, today=today, now=n, remind=need if reminder_open(n) else 0)
 
 
 def attendance_query(limit=None):
@@ -794,6 +802,68 @@ def admin_employee_toggle(uid):
     return redirect(url_for("admin_employees"))
 
 
+# ------------------------------------------------------------------ WhatsApp reminders (wa.me links)
+def wa_number(phone, cc="92"):
+    """Turn a phone number typed by the employee into digits for wa.me (country code, no +). '' if unusable."""
+    raw = (phone or "").strip()
+    d = re.sub(r"\D", "", raw)
+    if not d:
+        return ""
+    if raw.startswith("+"):
+        pass
+    elif d.startswith("00"):
+        d = d[2:]
+    elif d.startswith("0"):
+        d = cc + d[1:]
+    elif not (d.startswith(cc) and len(d) >= len(cc) + 9):
+        d = cc + d
+    return d if 8 <= len(d) <= 15 else ""
+
+
+def fill(tpl, **vals):
+    for k, v in vals.items():
+        tpl = tpl.replace("{" + k + "}", str(v))
+    return tpl
+
+
+def reminder_rows(n):
+    """Active employees who have not checked in (or were marked Absent) or who checked in Late today."""
+    today = n.strftime("%Y-%m-%d")
+    users = db().execute("SELECT * FROM users WHERE role='employee' AND active=1 ORDER BY full_name").fetchall()
+    recs = {r["user_id"]: r for r in db().execute("SELECT * FROM attendance WHERE work_date=?", (today,)).fetchall()}
+    cc, out = setting("country_code") or "92", []
+    for u in users:
+        r = recs.get(u["id"])
+        if r is None or r["status"] == "Absent":
+            kind, tpl = "Absent", setting("msg_absent")
+        elif r["status"] == "Late":
+            kind, tpl = "Late", setting("msg_late")
+        else:
+            continue
+        msg = fill(tpl, name=u["full_name"], date=n.strftime("%d %b %Y"), time=t12(r["check_in"]) if r else "",
+                   office_start=setting("office_start"), company=setting("company"))
+        num = wa_number(u["phone"], cc)
+        out.append({"u": u, "kind": kind, "phone": u["phone"], "msg": msg,
+                    "link": ("https://wa.me/%s?text=%s" % (num, quote(msg))) if num else ""})
+    return out
+
+
+def reminder_open(n):
+    try:
+        h, m = map(int, setting("reminder_time").split(":"))
+    except ValueError:
+        h, m = 10, 15
+    return n >= n.replace(hour=h, minute=m, second=0, microsecond=0)
+
+
+@app.route("/admin/reminders")
+@admin_required
+def admin_reminders():
+    n = now()
+    return render_template("admin_reminders.html", items=reminder_rows(n), is_open=reminder_open(n),
+                           rt=setting("reminder_time"), now=n, day=n.strftime("%Y-%m-%d"))
+
+
 @app.route("/admin/settings", methods=["GET", "POST"])
 @admin_required
 def admin_settings():
@@ -803,11 +873,19 @@ def admin_settings():
             datetime.strptime(f["office_start"], "%H:%M")
             int(f["grace_minutes"])
             ZoneInfo(f["timezone"])
+            datetime.strptime(f.get("reminder_time", "10:15"), "%H:%M")
+            if not re.fullmatch(r"\d{1,4}", f.get("country_code", "92").strip()):
+                raise ValueError("country code")
         except Exception:
-            flash("Please enter a valid start time, grace minutes and timezone (e.g. Asia/Karachi).", "error")
+            flash("Please enter a valid start time, grace minutes, timezone (e.g. Asia/Karachi), reminder time and country code (e.g. 92).", "error")
         else:
-            for k in ("office_start", "grace_minutes", "timezone"):
-                db().execute("INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (k, f[k].strip()))
+            vals = {k: f[k].strip() for k in ("office_start", "grace_minutes", "timezone")}
+            vals["reminder_time"] = f.get("reminder_time", "10:15").strip()
+            vals["country_code"] = f.get("country_code", "92").strip()
+            for k in ("msg_absent", "msg_late"):
+                vals[k] = (f.get(k, "").strip() or DEFAULT_SETTINGS[k])[:500]
+            for k, v in vals.items():
+                db().execute("INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (k, v))
             db().commit()
             _SETCACHE["v"] = None
             flash("Settings saved.", "ok")
