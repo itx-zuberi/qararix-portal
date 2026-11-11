@@ -95,6 +95,19 @@ CREATE TABLE IF NOT EXISTS photos(
   user_id INTEGER PRIMARY KEY REFERENCES users(id),
   mime TEXT NOT NULL, data BLOB NOT NULL
 );
+CREATE TABLE IF NOT EXISTS transactions(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tx_date TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'expense',
+  category TEXT NOT NULL DEFAULT 'Other',
+  title TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  amount_minor BIGINT NOT NULL,
+  method TEXT DEFAULT 'Cash',
+  created_by TEXT DEFAULT '',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(tx_date);
 """
 if IS_PG:
     SCHEMA = SCHEMA.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY").replace("BLOB", "BYTEA")
@@ -209,7 +222,7 @@ def close_db(_):
         d.close()
 
 
-SCHEMA_V = "2"
+SCHEMA_V = "3"
 
 
 def init_db():
@@ -340,7 +353,7 @@ app.jinja_env.globals.update(asset=asset, initials=lambda n: "".join(w[0] for w 
 @app.before_request
 def guard():
     g.user = None
-    if request.endpoint == "static":
+    if request.endpoint == "static" or request.blueprint == "api":  # the mobile API uses token auth, not cookies/CSRF
         return
     if request.method == "POST":
         sent = request.form.get("_csrf", "").encode()
@@ -890,6 +903,13 @@ def admin_settings():
             _SETCACHE["v"] = None
             flash("Settings saved.", "ok")
     return render_template("admin_settings.html", s={k: setting(k) for k in DEFAULT_SETTINGS})
+
+
+# ------------------------------------------------------------------ mobile app API (see mobile_api.py)
+import sys
+import mobile_api as _api
+_api.init(sys.modules[__name__])
+app.register_blueprint(_api.bp)
 
 
 @app.errorhandler(403)

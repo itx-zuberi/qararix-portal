@@ -1,0 +1,35 @@
+QARARIX PORTAL - PUSH TO GITHUB (repo: https://github.com/itx-zuberi/qararix-portal)
+=====================================================================================
+This folder already contains the mobile API (mobile_api.py) and the patched portal.py.
+Run these from INSIDE the qararix-portal folder (the one that contains portal.py and .git).
+
+1) (optional) run the 55 automated API checks locally
+     pip install flask tzdata pillow
+     python tests/test_api.py            # last line must say: FAILS: 0
+
+2) commit and push
+     git config user.name  "itx-zuberi"
+     git config user.email "zuberipersonal@gmail.com"
+     git add -A
+     git status                          # should list: .vercelignore, portal.py, mobile_api.py, tests/, COMMANDS.txt
+     git commit -m "Add mobile API (/api/v1) and transactions table for the Android app"
+     git push origin main
+
+   If git asks for a password: GitHub no longer accepts account passwords. Use a Personal Access
+   Token (GitHub > Settings > Developer settings > Tokens, scope "repo") as the password, or run "gh auth login".
+   If the push is rejected because the remote has newer commits:
+     git pull --rebase origin main
+     git push origin main
+
+3) deploy
+   Vercel redeploys by itself after the push if the repo is connected to your Vercel project.
+   If it does not, deploy by hand:   npx vercel --prod
+
+4) verify (wait ~1 minute after the deploy)
+     curl https://qararix-portal.vercel.app/api/v1/config
+   Expected: {"ok":true,...}   (If you see an HTML error page, check the Vercel deployment logs.)
+
+Vercel environment variables needed (you already have them for the website):
+   DATABASE_URL, SECRET_KEY, QARARIX_ADMIN_PASSWORD, QARARIX_HTTPS=1
+Keep SECRET_KEY unchanged: the app's login tokens are signed with it.
+The new "transactions" table is created automatically on the first request after deploy.

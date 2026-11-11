@@ -9,3 +9,4 @@ run_windows.bat
 .env.example
 data
 venv
+tests
